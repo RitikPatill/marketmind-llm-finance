@@ -16,12 +16,15 @@ Ask a question about any stock, get a cited answer grounded in live data.
 - `.env.example` documenting the required `ANTHROPIC_API_KEY` variable
 - MIT license and `.gitignore`
 
-No application code runs yet. Each subsequent milestone implements one layer of the architecture shown below.
+### Implemented — M2 (data layer)
+
+- `src/marketmind/data.py` — two public functions:
+  - `get_snapshot(ticker)` — returns a `Snapshot` dataclass with 30-day OHLCV history (JSON-serialisable dicts) and `Fundamentals` (P/E, EPS, 52-week high/low, market cap, analyst target, currency) via `yfinance`
+  - `get_news(ticker)` — returns up to 10 `NewsItem` entries (title, URL, published) via Yahoo Finance RSS and `feedparser`
+- Offline unit tests in `tests/test_data.py`; all `yfinance` and `feedparser` calls are patched with `unittest.mock`, so the suite runs without any network access; `tests/fixtures/snap_AAPL.json` provides a hand-authored reference snapshot
 
 ### Planned
 
-- Single-ticker analysis: price history, fundamentals (P/E, EPS, market cap), and analyst targets
-- Live news context: last 10 headlines pulled from Google Finance RSS at query time
 - Streaming LLM response via Claude with citations to specific data points
 - Dark-mode Streamlit UI with an interactive mini price chart (Plotly)
 - CLI mode: `python query.py ASML "What are the key risks?"`
@@ -71,10 +74,14 @@ marketmind-llm-finance/
 │   └── marketmind/
 │       ├── __init__.py
 │       ├── py.typed
-│       ├── data.py        # coming soon — yfinance + feedparser data layer
+│       ├── data.py        # M2 — yfinance + feedparser data layer
 │       ├── analyst.py     # coming soon — context builder + Claude integration
 │       ├── api.py         # coming soon — FastAPI endpoints
 │       └── cli.py         # coming soon — CLI entry point
+├── tests/
+│   ├── fixtures/
+│   │   └── snap_AAPL.json # hand-authored reference snapshot for AAPL
+│   └── test_data.py       # M2 — offline unit tests (all network calls mocked)
 ├── app.py                 # coming soon — Streamlit frontend
 ├── query.py               # coming soon — CLI wrapper
 ├── requirements.txt
