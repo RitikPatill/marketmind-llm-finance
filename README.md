@@ -23,11 +23,19 @@ Ask a question about any stock, get a cited answer grounded in live data.
   - `get_news(ticker)` — returns up to 10 `NewsItem` entries (title, URL, published) via Yahoo Finance RSS and `feedparser`
 - Offline unit tests in `tests/test_data.py`; all `yfinance` and `feedparser` calls are patched with `unittest.mock`, so the suite runs without any network access; `tests/fixtures/snap_AAPL.json` provides a hand-authored reference snapshot
 
+### Implemented — M3 (LLM analysis pipeline)
+
+- `src/marketmind/analyst.py` — core LLM module:
+  - `build_context(snapshot, news)` — serialises a `Snapshot` + news list into a compact Markdown block (< 1 500 tokens): price summary (last close, 30d high/low), fundamentals (skipping `None` fields, market cap formatted as `$2.74T`), and up to 10 news bullets
+  - `ask(ticker, question, stream=True)` — fetches live data, builds context, calls Claude (`claude-haiku-4-5-20251001`) via the Anthropic SDK; returns a generator of text chunks (streaming) or a full string (non-streaming); loads `ANTHROPIC_API_KEY` via `python-dotenv`
+  - System prompt enforces citation of specific numbers from context to mitigate hallucination
+- `src/marketmind/cli.py` — CLI entry point: `python -m marketmind.cli TICKER "question"` streams the answer to stdout
+- `tests/test_analyst.py` — 6 unit tests; all Anthropic API calls and data-layer calls are mocked (no network, no API key needed)
+
 ### Planned
 
-- Streaming LLM response via Claude with citations to specific data points
 - Dark-mode Streamlit UI with an interactive mini price chart (Plotly)
-- CLI mode: `python query.py ASML "What are the key risks?"`
+- FastAPI backend (`GET /snapshot/{ticker}`, `POST /query`)
 - Fully local-first: no paid data feeds, no broker account required
 
 ## Architecture
@@ -47,7 +55,7 @@ Ask a question about any stock, get a cited answer grounded in live data.
 │  Data Layer           │  │  LLM Layer               │
 │  data.py              │  │  analyst.py              │
 │  • yfinance (OHLCV,  │  │  • build_context()       │
-│    fundamentals)      │  │  • ask_claude() stream   │
+│    fundamentals)      │  │  • ask() (streaming)     │
 │  • feedparser (RSS   │  │  • Anthropic SDK         │
 │    news headlines)    │  └──────────────────────────┘
 └──────────────────────┘
@@ -60,10 +68,15 @@ The system follows a retrieval-augmented generation (RAG) pattern: market data a
 ```bash
 git clone https://github.com/your-username/marketmind-llm-finance.git
 cd marketmind-llm-finance
-pip install -r requirements.txt
+pip install -e .
 cp .env.example .env
 # Edit .env and set ANTHROPIC_API_KEY=<your key>
-streamlit run app.py   # app.py is coming in a future milestone
+
+# CLI — works now (M3)
+python -m marketmind.cli AAPL "What does the current P/E ratio suggest about valuation?"
+
+# Streamlit UI — coming in a future milestone
+# streamlit run app.py
 ```
 
 ## Project Layout
@@ -75,15 +88,15 @@ marketmind-llm-finance/
 │       ├── __init__.py
 │       ├── py.typed
 │       ├── data.py        # M2 — yfinance + feedparser data layer
-│       ├── analyst.py     # coming soon — context builder + Claude integration
+│       ├── analyst.py     # M3 — context builder + Claude integration
+│       ├── cli.py         # M3 — CLI entry point
 │       ├── api.py         # coming soon — FastAPI endpoints
-│       └── cli.py         # coming soon — CLI entry point
 ├── tests/
 │   ├── fixtures/
 │   │   └── snap_AAPL.json # hand-authored reference snapshot for AAPL
-│   └── test_data.py       # M2 — offline unit tests (all network calls mocked)
+│   ├── test_data.py       # M2 — offline unit tests (all network calls mocked)
+│   └── test_analyst.py    # M3 — analyst unit tests (Anthropic client mocked)
 ├── app.py                 # coming soon — Streamlit frontend
-├── query.py               # coming soon — CLI wrapper
 ├── requirements.txt
 ├── requirements-dev.txt
 ├── pyproject.toml
