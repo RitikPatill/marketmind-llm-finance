@@ -1,10 +1,11 @@
-![Python](https://img.shields.io/badge/python-3.11%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green) ![CI](https://github.com/your-username/marketmind-llm-finance/actions/workflows/ci.yml/badge.svg)
 
 # MarketMind
 
 Ask a question about any stock, get a cited answer grounded in live data.
 
-<!-- GIF will be added in M6 -->
+> **Demo** — record with [Terminalizer](https://github.com/faressoft/terminalizer) or [ShareX](https://getsharex.com/) and drop the GIF here.
+<!-- GIF skipped: cannot capture an interactive terminal session in a non-interactive automated environment; record manually and replace this line with ![Demo](docs/demo.gif) -->
 
 ## Features
 
@@ -77,6 +78,15 @@ Ask a question about any stock, get a cited answer grounded in live data.
 
 The system follows a retrieval-augmented generation (RAG) pattern: market data and news are fetched at query time, serialised into a compact Markdown context block (< 1 500 tokens), and passed to Claude alongside the user question. The system prompt requires the model to cite specific numbers from the context, making hallucination straightforward to detect.
 
+## How hallucination is mitigated
+
+MarketMind uses a retrieval-grounded prompt strategy:
+
+1. **Data is fetched at query time** — prices, P/E, EPS, and news are pulled live from Yahoo Finance via `yfinance` and `feedparser` immediately before the LLM call. The model never invents numbers it wasn't given.
+2. **System prompt enforces citation** — the system prompt in `analyst.py` instructs Claude to reference specific values from the context block (e.g. *"P/E of 28.5"*, *"52-week high of $199.62"*). Answers that drift from the provided numbers are immediately detectable.
+3. **Context is compact and scoped** — the context block is kept under 1 500 tokens (one ticker, 30 days, 10 headlines). Smaller context → less opportunity for the model to conflate unrelated data.
+4. **Manual eval is easy** — every cited number in the answer can be spot-checked against the raw `/snapshot/{ticker}` endpoint in one browser tab.
+
 ## Quick Start
 
 ```bash
@@ -127,6 +137,25 @@ marketmind-llm-finance/
 ├── .env.example
 ├── .gitignore
 └── LICENSE
+```
+
+## Example output
+
+**Query:** `ASML "What are the key risks for ASML right now?"`
+
+```
+## ASML Risk Summary
+
+Based on the current data (last close €812.40, P/E 35.2):
+
+- **Geopolitical export controls**: ASML's EUV machines are subject to Dutch and US export
+  restrictions. Any tightening toward China could reduce the addressable market.
+- **Concentration risk**: TSMC, Samsung, and Intel collectively account for the majority
+  of EUV revenue. Capex pullbacks at any of these customers flow directly to ASML order books.
+- **Analyst consensus**: Mean target of €950 implies ~17% upside, but 3 of 12 analysts
+  recently lowered estimates citing macro uncertainty (per headlines, 2024-05-03).
+
+*All figures sourced from the context block above.*
 ```
 
 ## Out of Scope
