@@ -40,10 +40,17 @@ Ask a question about any stock, get a cited answer grounded in live data.
 - CORS middleware (`allow_origins=["*"]`) so the Streamlit frontend can call the API from a different port
 - `tests/test_api.py` — 4 unit tests using `TestClient`; all network and Anthropic calls are mocked
 
-### Planned
+### Implemented — M5 (Streamlit UI)
 
-- Dark-mode Streamlit UI with an interactive mini price chart (Plotly)
-- Fully local-first: no paid data feeds, no broker account required
+- `app.py` — Streamlit frontend with wide dark layout:
+  - Sidebar ticker input and three preset "Try an example" buttons (NVDA / ASML / SAP)
+  - Two-column layout: question text area + Analyse button (left), Plotly candlestick chart (right)
+  - Streaming answer panel powered by `st.write_stream` (Streamlit ≥ 1.31)
+  - Dark theme via `.streamlit/config.toml` and CSS injection
+  - Clear error messages when the backend is unreachable
+- `tests/test_app.py` — 5 unit tests (all httpx calls mocked, no network needed)
+
+### Fully local-first: no paid data feeds, no broker account required
 
 ## Architecture
 
@@ -87,8 +94,9 @@ uvicorn marketmind.api:app --reload
 # Then: GET  http://localhost:8000/snapshot/AAPL
 #       POST http://localhost:8000/query  {"ticker":"AAPL","question":"Is it overvalued?"}
 
-# Streamlit UI — coming in a future milestone
-# streamlit run app.py
+# Streamlit UI — works now (M5); run the API server first, then launch the UI
+uvicorn marketmind.api:app --reload &
+streamlit run app.py
 ```
 
 ## Project Layout
@@ -108,8 +116,11 @@ marketmind-llm-finance/
 │   │   └── snap_AAPL.json # hand-authored reference snapshot for AAPL
 │   ├── test_data.py       # M2 — offline unit tests (all network calls mocked)
 │   ├── test_analyst.py    # M3 — analyst unit tests (Anthropic client mocked)
-│   └── test_api.py        # M4 — API unit tests (all external calls mocked)
-├── app.py                 # coming soon — Streamlit frontend
+│   ├── test_api.py        # M4 — API unit tests (all external calls mocked)
+│   └── test_app.py        # M5 — Streamlit helper unit tests (httpx mocked)
+├── app.py                 # M5 — Streamlit frontend
+├── .streamlit/
+│   └── config.toml        # M5 — dark theme config
 ├── requirements.txt
 ├── requirements-dev.txt
 ├── pyproject.toml
